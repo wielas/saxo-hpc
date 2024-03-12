@@ -26,23 +26,20 @@ def is_book_scraped(session, i):
 
 
 def normalize_title_and_author(title, author):
-    if title:
-        title = normalize_book_title_string(title)
-    else:
-        logging.error(f"Title is missing for book {i + 1} ABORTING")
+    title = normalize_book_title_string(title)
 
     if author:
         author = normalize_author_string(author)
     else:
         author = ""
-        logging.error(f"Author is missing for book {i + 1}")
+        logging.error(f"Author is missing for book {i + 1}: {title}")
 
     return title, author
 
 
 if __name__ == "__main__":
 
-    input_csv = "data/top3.csv"
+    input_csv = "data/top_10k_books.csv"
 
     book_info = read_input_csv(input_csv)
     session = create_session()
@@ -50,9 +47,10 @@ if __name__ == "__main__":
     for i, (title, author) in enumerate(book_info):
         print(f"Scraping book {i + 1} out of {len(book_info)}")
         # normalize the strings
-        title, author = normalize_title_and_author(title, author)
         if not title:
+            logging.error(f"Title is missing for book {i + 1} ABORTING")
             continue
+        title, author = normalize_title_and_author(title, author)
 
         # get the search page html
         search_page_html = query_saxo_with_title_return_search_page(title)

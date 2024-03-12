@@ -112,7 +112,7 @@ def if_paperbook_option_exists_return_new_url(html_content):
         # If not found, try to find a class 'icon-book'
         book_link = product_variant_div.find("a", class_="icon-book")
         if book_link:
-            return book_link.get("href")
+            return "https://www.saxo.com" + book_link.get("href")
 
     return None
 
@@ -133,7 +133,7 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url):
             if new_url is None:
                 html = browser.page_source
             else:
-                create_browser_and_wait_for_book_details_page_load(new_url)
+                return create_browser_and_wait_for_book_details_page_load(new_url)
 
         except TimeoutException:
             print('kurdefiks')

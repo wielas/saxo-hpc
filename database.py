@@ -48,7 +48,7 @@ class Author(Base):
     books = relationship('Book', secondary=book_author, back_populates='authors')
 
 
-engine = create_engine('sqlite:///scraped_books_test.db')
+engine = create_engine('sqlite:///scraped_books.db')
 Base.metadata.create_all(engine)
 
 
