@@ -11,6 +11,7 @@ from utils import normalize_author_string, normalize_book_title_string, extract_
 
 logging.basicConfig(filename='data/app_errors.log', level=logging.ERROR,
                     format='%(asctime)s:%(levelname)s:%(message)s')
+logging.info("Starting the scraping process")
 
 
 def read_input_csv(file_path):
@@ -39,12 +40,15 @@ def normalize_title_and_author(title, author):
 
 if __name__ == "__main__":
 
-    input_csv = "data/top_10k_books.csv"
+    input_csv = "data/top3.csv"
 
     book_info = read_input_csv(input_csv)
     session = create_session()
 
     for i, (title, author) in enumerate(book_info):
+        if is_book_scraped(session, i + 1):
+            continue
+
         print(f"Scraping book {i + 1} out of {len(book_info)}")
         # normalize the strings
         if not title:

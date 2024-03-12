@@ -157,8 +157,9 @@ def save_book_details_to_database(book_details, session, parent=None):
 
             link_authors_to_book(book, book_details[AUTHORS], session)
 
-        if parent:
+        if parent and book not in parent.recommendations:
             parent.recommendations.append(book)
+            session.flush()
 
         if book_details[TOP10K] != 0:  # if book is in the top10k list, then scrape its recommendations too
             book.top10k = book_details[TOP10K]
@@ -211,10 +212,12 @@ def link_authors_to_book(book, authors, session):
 
 def save_recommended_books(parent_book, recommended_isbns, session):
     for recommended_isbn in recommended_isbns:
+        # check if the recommended book is already in the database
         existing_recommended_book = get_book_by_isbn(session, recommended_isbn)
-        if existing_recommended_book:
+        if existing_recommended_book and existing_recommended_book not in parent_book.recommendations:
             parent_book.recommendations.append(existing_recommended_book)
             continue
+        # if not, scrape the details and save it
         scrape_and_save_recommended_book(parent_book, recommended_isbn, session)
         time.sleep(1)
 
