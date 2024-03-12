@@ -209,9 +209,13 @@ def link_authors_to_book(book, authors, session):
         book.authors.append(author)
 
 
-def save_recommended_books(book, recommended_isbns, session):
+def save_recommended_books(parent_book, recommended_isbns, session):
     for recommended_isbn in recommended_isbns:
-        scrape_and_save_recommended_book(book, recommended_isbn, session)
+        existing_recommended_book = get_book_by_isbn(session, recommended_isbn)
+        if existing_recommended_book:
+            parent_book.recommendations.append(existing_recommended_book)
+            continue
+        scrape_and_save_recommended_book(parent_book, recommended_isbn, session)
         time.sleep(1)
 
 

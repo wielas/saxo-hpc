@@ -13,8 +13,6 @@ logging.basicConfig(filename='data/app_errors.log', level=logging.ERROR,
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
 
-# TODO create a clause for when the isbn matches with the book already in the database
-
 def read_input_csv(file_path):
     """Read the CSV file to get the list of tuples (book_title, book_author) and return it as a list"""
     df = pd.read_csv(file_path, encoding="ISO-8859-1")
