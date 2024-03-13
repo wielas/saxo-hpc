@@ -29,6 +29,7 @@ class Book(Base):
     num_of_ratings = Column(Integer)
     rating = Column(String)
     description = Column(Text)
+    url = Column(String)
     top10k = Column(Integer, default=0)
 
     authors = relationship('Author', secondary=book_author, back_populates='books')

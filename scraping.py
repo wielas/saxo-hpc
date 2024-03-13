@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import traceback
+from enum import Enum
 
 import requests
 from bs4 import BeautifulSoup
@@ -16,7 +17,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from database import Book, Author
 from utils import translate_danish_to_english, is_book_correct, \
     extract_book_details_dict, ISBN, TITLE, PAGE_COUNT, PUBLISHED_DATE, PUBLISHER, FORMAT, NUM_OF_RATINGS, RATING, \
-    DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, default_book_dict_with_isbn
+    DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, default_book_dict_with_isbn, URL, LoadStatus
 
 
 def query_saxo_with_title_return_search_page(title):
@@ -72,7 +73,7 @@ def find_book_by_title_in_search_results_return_book_url(html_content_search_pag
         return 'N/A'
 
     except:
-        logging.error(f"Failed to parse the search results. Title: {title}, Author: {author} ABORTING")
+        logging.error(f"Failed to parse the search results. Title: {title}, Author: {author}")
         return False
 
 
@@ -117,13 +118,18 @@ def if_paperbook_option_exists_return_new_url(html_content):
     return None
 
 
-def create_browser_and_wait_for_book_details_page_load(book_detail_page_url):
+def is_book_scraped_url(session, url):
+    return session.query(Book).filter(Book.url == url).first()
+
+
+def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, session):
     """Create a browser and wait for the page to load, then return the page source"""
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     with Chrome(options=chrome_options) as browser:
         browser.get(book_detail_page_url)
         print(browser.current_url)
+
         try:
             WebDriverWait(browser, 30).until(lambda d: d.execute_script('return document.readyState') == 'complete')
             WebDriverWait(browser, 30).until(EC.presence_of_element_located((By.CLASS_NAME, "book-slick-slider")))
@@ -133,18 +139,23 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url):
             if new_url is None:
                 html = browser.page_source
             else:
-                return create_browser_and_wait_for_book_details_page_load(new_url)
+                return create_browser_and_wait_for_book_details_page_load(new_url, session)
+
+            # if book is already scraped, return False with html to still scrape its recommendations
+            if is_book_scraped_url(session, browser.current_url):
+                print(f"Book {browser.current_url} already scraped")
+                return (LoadStatus.EXISTING, html)
 
         except TimeoutException:
             print('kurdefiks')
             logging.info(f"Failed to load the page. URL: {book_detail_page_url} SAVING DEFAULT")
-            return None
+            return (LoadStatus.ERROR, None)
 
-    return html
+    # otherwise, return the html
+    return (LoadStatus.NEW, html)
 
 
 # SAVING THE BOOK TO THE DATABASE ############################
-
 
 def save_book_details_to_database(book_details, session, parent=None):
     """Save or update book details in the database."""
@@ -157,11 +168,15 @@ def save_book_details_to_database(book_details, session, parent=None):
 
             link_authors_to_book(book, book_details[AUTHORS], session)
 
-        if parent and book not in parent.recommendations:
-            parent.recommendations.append(book)
-            session.flush()
+        if parent:  # this statement essentially means that the book is a second-layer recommended book
+            link_children_book_recommendations(book, book_details[RECOMMENDATIONS], session)
 
-        if book_details[TOP10K] != 0:  # if book is in the top10k list, then scrape its recommendations too
+            if book not in parent.recommendations:
+                parent.recommendations.append(book)
+                session.flush()
+
+        if book_details[TOP10K] != 0:  # this means that the book is in the first-layer list
+            # if book is in the top10k list, then scrape its recommendations too
             book.top10k = book_details[TOP10K]
             session.flush()
             save_recommended_books(book, book_details[RECOMMENDATIONS], session)
@@ -187,6 +202,7 @@ def create_new_book(book_details):
         num_of_ratings=int(book_details[NUM_OF_RATINGS]),
         rating=book_details[RATING],
         description=book_details[DESCRIPTION],
+        url=book_details[URL],
         top10k=book_details[TOP10K]
     )
 
@@ -201,22 +217,33 @@ def get_or_create_book(session, book_details):
     return book
 
 
+def link_children_book_recommendations(parent_book, recommended_books, session):
+    for recommended_book in recommended_books:
+        recommended_book = get_book_by_isbn(session, recommended_book)
+        if recommended_book and recommended_book not in parent_book.recommendations:
+            parent_book.recommendations.append(recommended_book)
+            session.flush()
+
+
 def link_authors_to_book(book, authors, session):
     for author_name in authors:
         author = session.query(Author).filter_by(name=author_name).first()
         if not author:
             author = Author(name=author_name)
             session.add(author)
-        book.authors.append(author)
+        if not author in book.authors:
+            book.authors.append(author)
 
 
 def save_recommended_books(parent_book, recommended_isbns, session):
+    """Save the recommended books to the database if they don't exist yet"""
     for recommended_isbn in recommended_isbns:
         # check if the recommended book is already in the database
         existing_recommended_book = get_book_by_isbn(session, recommended_isbn)
         if existing_recommended_book and existing_recommended_book not in parent_book.recommendations:
             parent_book.recommendations.append(existing_recommended_book)
             continue
+
         # if not, scrape the details and save it
         scrape_and_save_recommended_book(parent_book, recommended_isbn, session)
         time.sleep(1)
@@ -232,18 +259,22 @@ def scrape_and_save_recommended_book(parent_book, book_isbn, session):  # todo o
             default_book_dict = default_book_dict_with_isbn(book_isbn)
             save_book_details_to_database(default_book_dict, session, parent=parent_book)
             return
+
         # get the fully loaded book page html
-        book_page_html = create_browser_and_wait_for_book_details_page_load(book_page_url)
-        if book_page_html is None:
+        (status, book_page_html) = create_browser_and_wait_for_book_details_page_load(book_page_url, session)
+        if status == LoadStatus.ERROR:
             logging.info(f"Book {book_isbn} recommended by {parent_book.isbn} failed to load page SAVING DEFAULT")
             default_book_dict = default_book_dict_with_isbn(book_isbn)
             save_book_details_to_database(default_book_dict, session, parent=parent_book)
             return
-
-        book_details_dict = extract_book_details_dict(book_page_html)
-        book_details_dict[TOP10K] = 0
-        save_book_details_to_database(book_details_dict, session, parent=parent_book)
+        elif status == LoadStatus.EXISTING:
+            logging.info(f"The book {book_isbn} already exists in the db failed SKIPPING")
+            return
+        else:
+            book_details_dict = extract_book_details_dict(book_page_html)
+            book_details_dict[TOP10K] = 0
+            book_details_dict[URL] = book_page_url
+            save_book_details_to_database(book_details_dict, session, parent=parent_book)
 
     except Exception as e:
         logging.error(f"Scraping the recommended book with ISBN failed {book_isbn}: {e} ABORTING")
-        logging.error(traceback.format_exc())

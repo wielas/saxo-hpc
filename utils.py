@@ -2,6 +2,8 @@ import logging
 import re
 
 import unicodedata
+from enum import Enum
+
 from bs4 import BeautifulSoup
 
 # for mapping the keys extracted from the book page to the keys in the database
@@ -26,6 +28,7 @@ RATING = "Rating"
 DESCRIPTION = "Description"
 TOP10K = "Top10k"
 AUTHORS = "Authors"
+URL = "Url"
 RECOMMENDATIONS = "Recommendations"
 
 # for creating a default book entry
@@ -40,7 +43,14 @@ BOOK_NOT_AVAILABLE = {ISBN: 'x',
                       RATING: -1,
                       DESCRIPTION: "N/A",
                       RECOMMENDATIONS: [],
+                      URL: 'N/A',
                       TOP10K: 0}
+
+
+class LoadStatus(Enum):
+    NEW = "new"
+    EXISTING = "existing"
+    ERROR = "error"
 
 
 def default_book_dict_with_title_author(title, authors, top10k):
@@ -64,7 +74,7 @@ def normalize_special_characters(text):
     normalized_text = ''.join(
         char for char in normalized_text
         if unicodedata.category(char) != 'Mn'
-        and (ord(char) < 128 or char == ',')
+        and (ord(char) < 128 or char == ',' or char == '*' or char == '-')
     )
 
     return normalized_text
