@@ -11,6 +11,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -20,39 +21,54 @@ from utils import translate_danish_to_english, is_book_correct, \
     DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, default_book_dict_with_isbn, URL, LoadStatus
 
 
-def query_saxo_with_title_return_search_page(title):
+def query_saxo_with_title_return_search_page(title, proxy, no_of_proxy):
     """Search for the book on Saxo.com """
     search_url = f"https://www.saxo.com/dk/products/search?query={title.replace(' ', '+')}"
-    response = requests.get(search_url)
+    proxies = {"http": proxy, "https": proxy}
 
-    if response.status_code == 200:
-        return response.text
+    try:
+        response = requests.get(search_url, proxies=proxies)
 
-    else:
-        logging.exception(
-            f"Failed to fetch search results from Saxo.com for {title}. Status code: {response.status_code} ABORTING")
-        return None
+        if response.status_code == 200:
+            return response.text
+
+        else:
+            logging.exception(
+                f"Failed to fetch search results from Saxo.com for {title}. Status code: {response.status_code} ABORTING")
+            return None
+
+    except requests.exceptions.ProxyError:
+        logging.error(f"Proxy Error with proxy {proxy}, {no_of_proxy} in query_saxo_with_title_return_search_page")
+    except requests.exceptions.ConnectTimeout:
+        logging.error(
+            f"Connection timeout with proxy {proxy}, {no_of_proxy} in query_saxo_with_title_return_search_page")
 
 
 def is_query_redirecting_to_book_page(response):
     return 'search?query' not in response.url
 
 
-def query_saxo_with_isbn_return_book_page_url(isbn):
+def query_saxo_with_isbn_return_book_page_url(isbn, proxy, no_of_proxy):
     """Search for the book on Saxo.com """
     search_url = f"https://www.saxo.com/dk/products/search?query={isbn}"
-    response = requests.get(search_url)
+    try:
+        response = requests.get(search_url)
 
-    if response.status_code == 200 and is_query_redirecting_to_book_page(response):
-        return response.url
+        if response.status_code == 200 and is_query_redirecting_to_book_page(response):
+            return response.url
 
-    elif response.status_code == 200:  # if the page returns the search page and doesnt redirect to the single entry
-        return find_book_by_isbn_in_search_results_return_book_url(response.text, isbn)
+        elif response.status_code == 200:  # if the page returns the search page and doesnt redirect to the single entry
+            return find_book_by_isbn_in_search_results_return_book_url(response.text, isbn)
 
-    else:
-        logging.exception(
-            f"Failed to fetch search results from Saxo.com for {isbn}. Status code: {response.status_code}")
-        return None
+        else:
+            logging.exception(
+                f"Failed to fetch search results from Saxo.com for {isbn}. Status code: {response.status_code}")
+            return None
+    except requests.exceptions.ProxyError:
+        logging.error(f"Proxy Error with proxy {proxy}, {no_of_proxy} in query_saxo_with_isbn_return_book_page_url")
+    except requests.exceptions.ConnectTimeout:
+        logging.error(
+            f"Connection timeout with proxy {proxy}, {no_of_proxy} in query_saxo_with_isbn_return_book_page_url")
 
 
 def find_book_by_title_in_search_results_return_book_url(html_content_search_page, author=None, title=None):
@@ -122,9 +138,19 @@ def is_book_scraped_url(session, url):
     return session.query(Book).filter(Book.url == url).first()
 
 
-def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, session):
+def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, session, proxy, no_of_proxy):
     """Create a browser and wait for the page to load, then return the page source"""
+    selenium_proxy = Proxy({
+        'proxyType': ProxyType.MANUAL,
+        'httpProxy': proxy,
+        'ftpProxy': proxy,
+        'sslProxy': proxy,
+        'noProxy': ''
+    })
+
     chrome_options = Options()
+    selenium_proxy.add_to_capabilities(chrome_options.capabilities)
+
     chrome_options.add_argument("--headless")
     with Chrome(options=chrome_options) as browser:
         browser.get(book_detail_page_url)
@@ -139,7 +165,7 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, ses
             if new_url is None:
                 html = browser.page_source
             else:
-                return create_browser_and_wait_for_book_details_page_load(new_url, session)
+                return create_browser_and_wait_for_book_details_page_load(new_url, session, proxy, no_of_proxy)
 
             # if book is already scraped, return False with html to still scrape its recommendations
             if is_book_scraped_url(session, browser.current_url):
@@ -157,7 +183,7 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, ses
 
 # SAVING THE BOOK TO THE DATABASE ############################
 
-def save_book_details_to_database(book_details, session, parent=None):
+def save_book_details_to_database(book_details, session, proxy, no_of_proxy, parent=None):
     """Save or update book details in the database."""
     try:
         book = get_book_by_isbn(session, book_details[ISBN])
@@ -179,7 +205,7 @@ def save_book_details_to_database(book_details, session, parent=None):
             # if book is in the top10k list, then scrape its recommendations too
             book.top10k = book_details[TOP10K]
             session.flush()
-            save_recommended_books(book, book_details[RECOMMENDATIONS], session)
+            save_recommended_books(book, book_details[RECOMMENDATIONS], session, proxy, no_of_proxy)
 
         session.commit()
     except Exception as e:
@@ -235,7 +261,7 @@ def link_authors_to_book(book, authors, session):
             book.authors.append(author)
 
 
-def save_recommended_books(parent_book, recommended_isbns, session):
+def save_recommended_books(parent_book, recommended_isbns, session, proxy, no_of_proxy):
     """Save the recommended books to the database if they don't exist yet"""
     for recommended_isbn in recommended_isbns:
         # check if the recommended book is already in the database
@@ -245,27 +271,27 @@ def save_recommended_books(parent_book, recommended_isbns, session):
             continue
 
         # if not, scrape the details and save it
-        scrape_and_save_recommended_book(parent_book, recommended_isbn, session)
+        scrape_and_save_recommended_book(parent_book, recommended_isbn, session, proxy, no_of_proxy)
         time.sleep(1)
 
 
-def scrape_and_save_recommended_book(parent_book, book_isbn, session):  # todo optimize
+def scrape_and_save_recommended_book(parent_book, book_isbn, session, proxy, no_of_proxy):  # todo optimize
     """Scrape the details of a recommended book if it does not exist in the database"""
     try:
-        book_page_url = query_saxo_with_isbn_return_book_page_url(book_isbn)
+        book_page_url = query_saxo_with_isbn_return_book_page_url(book_isbn, proxy, no_of_proxy)
         if book_page_url == 'N/A':
             logging.info(
                 f"Book {book_isbn} recommended by {parent_book.isbn} not found in the search results SAVING DEFAULT")
             default_book_dict = default_book_dict_with_isbn(book_isbn)
-            save_book_details_to_database(default_book_dict, session, parent=parent_book)
+            save_book_details_to_database(default_book_dict, session, proxy, no_of_proxy, parent=parent_book)
             return
 
         # get the fully loaded book page html
-        (status, book_page_html) = create_browser_and_wait_for_book_details_page_load(book_page_url, session)
+        (status, book_page_html) = create_browser_and_wait_for_book_details_page_load(book_page_url, session, proxy, no_of_proxy)
         if status == LoadStatus.ERROR:
             logging.info(f"Book {book_isbn} recommended by {parent_book.isbn} failed to load page SAVING DEFAULT")
             default_book_dict = default_book_dict_with_isbn(book_isbn)
-            save_book_details_to_database(default_book_dict, session, parent=parent_book)
+            save_book_details_to_database(default_book_dict, session, proxy, no_of_proxy, parent=parent_book)
             return
         elif status == LoadStatus.EXISTING:
             logging.info(f"The book {book_isbn} already exists in the db failed SKIPPING")
@@ -274,7 +300,7 @@ def scrape_and_save_recommended_book(parent_book, book_isbn, session):  # todo o
             book_details_dict = extract_book_details_dict(book_page_html)
             book_details_dict[TOP10K] = 0
             book_details_dict[URL] = book_page_url
-            save_book_details_to_database(book_details_dict, session, parent=parent_book)
+            save_book_details_to_database(book_details_dict, session, proxy, no_of_proxy, parent=parent_book)
 
     except Exception as e:
         logging.error(f"Scraping the recommended book with ISBN failed {book_isbn}: {e} ABORTING")

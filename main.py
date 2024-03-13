@@ -1,5 +1,5 @@
 import logging
-import math
+import threading
 
 import pandas as pd
 
@@ -9,6 +9,7 @@ from scraping import query_saxo_with_title_return_search_page, \
     save_book_details_to_database
 from utils import normalize_author_string, normalize_book_title_string, extract_book_details_dict, TOP10K, \
     default_book_dict_with_title_author, URL, ISBN, LoadStatus
+from proxy import get_proxy_list
 
 logging.basicConfig(filename='data/app_errors.log', level=logging.INFO,
                     format='%(asctime)s:%(levelname)s:%(message)s')
@@ -47,19 +48,18 @@ def save_default_book(title, author, i, session):
     save_book_details_to_database(default_book_dict, session)
 
 
-if __name__ == "__main__":
-
-    input_csv = "data/top_10k_books.csv"
-
-    book_info = read_input_csv(input_csv)
-    session = create_session()
-
+def run_scraping(book_info, proxy, no_of_proxy):
     for i, (title, author) in enumerate(book_info):
+        if i < no_of_proxy * 5000:
+            continue
+        if i >= (no_of_proxy + 1) * 5000:
+            break
+
         if is_book_scraped_top10k(session, i + 1):
-            print(f"Book {i + 1} already scraped")
+            print(f"Book {i + 1} already scraped (thread {no_of_proxy})")
             continue
 
-        print(f"Scraping book {i + 1} out of {len(book_info)}")
+        print(f"Scraping book {i + 1} out of {len(book_info)} by thread {no_of_proxy}")
         # normalize the strings
         if not title:
             logging.critical(f"Title is missing for book {i + 1} ABORTING")
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         title, author = normalize_title_and_author(title, author)
 
         # get the search page html
-        search_page_html = query_saxo_with_title_return_search_page(title)
+        search_page_html = query_saxo_with_title_return_search_page(title, proxy, no_of_proxy)
         if search_page_html is None:
             continue
 
@@ -84,7 +84,8 @@ if __name__ == "__main__":
             continue
 
         # get the fully loaded book page html
-        (status, book_page_html) = create_browser_and_wait_for_book_details_page_load(book_page_url, session)
+        (status, book_page_html) = create_browser_and_wait_for_book_details_page_load(book_page_url, session, proxy,
+                                                                                      no_of_proxy)
         if status is LoadStatus.ERROR:
             logging.error(f"Failed to get the book page html for book {i + 1}: {title}, {author} SAVING DEFAULT")
             save_default_book(title, author, i, session)
@@ -95,7 +96,8 @@ if __name__ == "__main__":
             book_details_dict[TOP10K] = i + 1
             book_details_dict[URL] = book_page_url
             book_details_dict[ISBN] = book_details_dict[ISBN] + f"_{i + 1}"
-            logging.info(f"Book already exists {i + 1}:{book_details_dict[ISBN]}, {title}, {author} ADDING _TOP10K to ISBN")
+            logging.info(
+                f"Book already exists {i + 1}:{book_details_dict[ISBN]}, {title}, {author} ADDING _TOP10K to ISBN")
             save_book_details_to_database(book_details_dict, session)
             continue
         # extract the book details normally
@@ -104,3 +106,28 @@ if __name__ == "__main__":
             book_details_dict[TOP10K] = i + 1
             book_details_dict[URL] = book_page_url
             save_book_details_to_database(book_details_dict, session)
+
+
+if __name__ == "__main__":
+    session = create_session()
+
+    input_csv = "data/top_10k_books.csv"
+    book_info = read_input_csv(input_csv)
+
+    proxies = get_proxy_list()
+
+    proxies = [
+        "141.200.121.122:8080", "192.177.160.255:3128", "173.212.237.43:34405", "130.162.213.175:3129"
+    ]
+
+    threads = []
+
+    # Create and start a thread for each proxy
+    for i, proxy in enumerate(proxies):
+        thread = threading.Thread(target=run_scraping, args=(book_info, proxy, i))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
