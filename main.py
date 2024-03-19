@@ -75,7 +75,7 @@ if __name__ == "__main__":
         book_page_url = find_book_by_title_in_search_results_return_book_url(search_page_html, author, title)
         if book_page_url == 'N/A':
             logging.info(f"Book {i + 1} not found in the search results SAVING DEFAULT")
-            save_default_book(title, author, i, session)
+            save_default_book(title, author, i, session)  # TODO WRITE A SCRIPT TO CORRECT INEXISTENT 10K
             continue
 
         if book_page_url is False:

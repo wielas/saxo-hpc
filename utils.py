@@ -55,7 +55,7 @@ class LoadStatus(Enum):
 
 def default_book_dict_with_title_author(title, authors, top10k):
     default_book = BOOK_NOT_AVAILABLE.copy()
-    default_book[ISBN] = top10k
+    default_book[ISBN] = top10k  # TODO REMEMBER THIS CASE
     default_book[TITLE] = title
     default_book[AUTHORS] = list(authors)
     default_book[TOP10K] = top10k
