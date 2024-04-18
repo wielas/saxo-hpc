@@ -1,5 +1,6 @@
 import logging
 import re
+from difflib import SequenceMatcher
 
 import unicodedata
 from enum import Enum
@@ -17,8 +18,13 @@ KEY_MAPPINGS = {
 }
 
 # for saving to db
+FAUST = "Faust"
 ISBN = "ISBN"
 TITLE = "Title"
+TITLE_NORMALIZED = "TitleNormalized"
+TITLE_ORIGINAL = "TitleOriginal"
+AUTHOR_NORMALIZED = "AuthorNormalized"
+AUTHOR_ORIGINAL = "AuthorOriginal"
 PAGE_COUNT = "PageCount"
 PUBLISHED_DATE = "PublishedDate"
 PUBLISHER = "Publisher"
@@ -68,6 +74,53 @@ def default_book_dict_with_isbn(isbn):
     return default_book
 
 
+########## new code ##########
+def normalize_and_translate_text(text):
+    # Normalize text to lowercase and remove non-alphanumeric characters except spaces
+    text = translate_danish_to_english(text)
+    return ''.join(char.lower() for char in text if char.isalnum() or char.isspace())
+
+
+def similar(a, b):
+    # Calculate normalized Levenshtein distance and return similarity score
+    return SequenceMatcher(None, a, b).ratio()
+
+
+def match_titles(title1, title2):
+    # Check if the titles are similar enough (edit distance <= 1)
+    return similar(title1, title2) > 0.85
+
+
+def match_authors(author1, author2):
+    # Split the author names into parts and check for first name and at least one other name match
+    names1 = set(normalize_and_translate_text(author1).split())
+    names2 = set(normalize_and_translate_text(author2).split())
+    if len(names1) == 0 or len(names2) == 0:
+        return False
+    # Check if least one name match
+    return len(names1.intersection(names2)) >= 1
+
+
+
+
+def check_match(current_row_title, web_title, current_row_author, web_author):
+    # Normalize data
+    current_row_title_normalized = normalize_and_translate_text(current_row_title)
+    current_row_author_normalized = normalize_and_translate_text(current_row_author)
+    web_title_normalized = normalize_and_translate_text(web_title)
+    web_author_normalized = normalize_and_translate_text(web_author)
+
+    # Check matches
+    if match_titles(current_row_title_normalized, web_title_normalized) and \
+            match_authors(current_row_author_normalized, web_author_normalized):
+        return True
+    else:
+        return False
+
+
+########## ///////////new code ##########
+
+
 def normalize_special_characters(text):
     # Normalize the text by separating characters and their diacritical marks (e.g., 'á' becomes 'a' + '´')
     normalized_text = unicodedata.normalize('NFD', text)
@@ -95,83 +148,65 @@ def translate_danish_to_english(text):
 
     return text
 
-
-def normalize_author_string(name):
-    name = translate_danish_to_english(name)
-    name = normalize_special_characters(name)
-
-    # Remove common business entity suffixes and punctuation, while keeping commas
-    suffixes = ['Ltd', 'Inc', 'Co', 'LLC', 'LLP', 'PLC']
-    pattern = r'\b(?:' + '|'.join(suffixes) + r')\.?\b'
-    name = re.sub(pattern, '', name, flags=re.IGNORECASE)
-
-    # Remove any parenthesized content
-    name = re.sub(r'\(.*?\)', '', name)
-
-    # Remove any remaining punctuation (except for commas) and extra whitespace
-    name = re.sub(r'[^\w\s,]', '', name)  # Keep commas by adding them to the character set
-    name = re.sub(r'\s+', ' ', name).strip()
-
-    return name.lower()
-
-
-def normalize_book_title_string(title):
-    """ normalize a book title by trimming, converting to lowercase, and removing special characters"""
-    title = translate_danish_to_english(title)
-    title = normalize_special_characters(title)
-
-    normalized_title = title.strip()
-    normalized_title = normalized_title.lower()
-    # Remove special characters except for spaces and alphanum
-    normalized_title = re.sub(r'[^a-zA-Z0-9\s]', '', normalized_title)
-
-    return normalized_title
-
-
-def is_book_correct(authors_local, book_parsed):
-    """Parse the first author and compare it to the extracted authors. Return True if the names match."""
-    authors_extracted = book_parsed["Authors"]
-    work = book_parsed["Work"].lower()
-    id = book_parsed["Id"]
-
-    if authors_local is None:
-        return id.isdigit() and work != 'brugt bog'
-    authors_local = authors_local.lower().replace('"', "")
-    first_author_local = authors_local.split(',')[0] if ',' in authors_local else authors_local
-    first_author_local_normalized = normalize_author_string(first_author_local)
-
-    authors_extracted_normalized = [normalize_author_string(author.lower()) for author in list(authors_extracted)]
-    return first_author_local_normalized in authors_extracted_normalized and id.isdigit() and work != 'brugt bog'
-
+# hidden og code
+# def is_book_correct(authors_local, book_parsed):
+#     """Parse the first author and compare it to the extracted authors. Return True if the names match."""
+#     authors_extracted = book_parsed["Authors"]
+#     work = book_parsed["Work"].lower()
+#     id = book_parsed["Id"]
+#
+#     if authors_local is None:
+#         return id.isdigit() and work != 'brugt bog'
+#     authors_local = authors_local.lower().replace('"', "")
+#     first_author_local = authors_local.split(',')[0] if ',' in authors_local else authors_local
+#     first_author_local_normalized = normalize_author_string(first_author_local)
+#
+#     authors_extracted_normalized = [normalize_author_string(author.lower()) for author in list(authors_extracted)]
+#     return first_author_local_normalized in authors_extracted_normalized and id.isdigit() and work != 'brugt bog'
+#
 
 # EXTRACT THE DETAILS FROM THE BOOK PAGE ########################################
 
-def extract_book_details_dict(book_page_html):
+# def extract_book_details_dict(book_page_html):
+#     """Scrape and structure the book's details from its HTML page content."""
+#     soup = BeautifulSoup(book_page_html, "html.parser")
+#     title = extract_title(soup)
+#     authors = extract_authors(soup)
+#     details = extract_details(soup)
+#     product_description = extract_description(soup)
+#     rating, num_of_reviews = extract_reviews(soup)
+#     recommendations = extract_recommendations_list(book_page_html)
+#
+#     # Combine all extracted details into a single dictionary
+#     book_details = {**details, TITLE: title, AUTHORS: authors,
+#                     NUM_OF_RATINGS: num_of_reviews, RATING: rating, DESCRIPTION: product_description,
+#                     RECOMMENDATIONS: recommendations}
+#     return book_details
+
+
+def extract_book_details_dict_no_js(book_page_html):
     """Scrape and structure the book's details from its HTML page content."""
     soup = BeautifulSoup(book_page_html, "html.parser")
     title = extract_title(soup)
     authors = extract_authors(soup)
     details = extract_details(soup)
     product_description = extract_description(soup)
-    rating, num_of_reviews = extract_reviews(soup)
-    recommendations = extract_recommendations_list(book_page_html)
 
     # Combine all extracted details into a single dictionary
-    book_details = {**details, TITLE: title, AUTHORS: authors,
-                    NUM_OF_RATINGS: num_of_reviews, RATING: rating, DESCRIPTION: product_description,
-                    RECOMMENDATIONS: recommendations}
+    book_details = {**details, TITLE: title, AUTHORS: authors, DESCRIPTION: product_description}
     return book_details
+
 
 
 def extract_title(soup):
     title = soup.find("h1", class_="text-xl sm:text-l text-800 mb-0").text.strip()
-    return normalize_book_title_string(title)
+    return normalize_and_translate_text(title)
 
 
 def extract_authors(soup):
     authors = []
     author_tags = soup.find('div', class_='text-s product-autor').find_all('a', class_='link link--black')
-    authors = [normalize_author_string(tag.get_text(strip=True)) for tag in author_tags if tag != "&"]
+    authors = [normalize_and_translate_text(tag.get_text(strip=True)) for tag in author_tags if tag != "&"]
     return authors
 
 

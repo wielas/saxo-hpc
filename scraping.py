@@ -1,9 +1,6 @@
-import logging
 import json
 import logging
 import time
-import traceback
-from enum import Enum
 
 import requests
 from bs4 import BeautifulSoup
@@ -15,9 +12,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from database import Book, Author
-from utils import translate_danish_to_english, is_book_correct, \
-    extract_book_details_dict, ISBN, TITLE, PAGE_COUNT, PUBLISHED_DATE, PUBLISHER, FORMAT, NUM_OF_RATINGS, RATING, \
-    DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, default_book_dict_with_isbn, URL, LoadStatus
+from utils import translate_danish_to_english, \
+    ISBN, TITLE, PAGE_COUNT, PUBLISHED_DATE, PUBLISHER, FORMAT, DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, \
+    default_book_dict_with_isbn, URL, LoadStatus, check_match, \
+    normalize_and_translate_text, FAUST, TITLE_ORIGINAL, TITLE_NORMALIZED, AUTHOR_ORIGINAL, AUTHOR_NORMALIZED
 
 
 def query_saxo_with_title_return_search_page(title):
@@ -59,21 +57,21 @@ def find_book_by_title_in_search_results_return_book_url(html_content_search_pag
     try:
         soup_search_page = BeautifulSoup(html_content_search_page, "html.parser")
         for book in soup_search_page.find_all("div", class_="product-list-teaser"):
-            book_parsed = translate_danish_to_english(book.find("a").get("data-val"))
+            book_parsed = (book.find("a").get("data-val"))
             book_parsed = json.loads(book_parsed)
-            print(book_parsed)
+            # print(book_parsed)
 
             # verify that the book matches the search criteria (author and paperbook)
-            if 'Authors' in book_parsed and 'Work' in book_parsed:
-                if is_book_correct(author, book_parsed):
+            if 'Authors' in book_parsed and 'Work' in book_parsed and author and title:
+                if check_match(title, book_parsed['Name'], author, ', '.join(book_parsed['Authors'])):
                     return book_parsed["Url"]
 
-        logging.info(
+        logging.error(
             f"Failed to find the book in the search results. Title: {title}, Author: {author}, Book details: {book_parsed} SAVING DEFAULT")
-        return 'N/A'
+        return False
 
-    except:
-        logging.error(f"Failed to parse the search results. Title: {title}, Author: {author}")
+    except Exception as e:
+        logging.critical(f"Failed to parse the search results. Title: {title}, Author: {author} error: {e}")
         return False
 
 
@@ -122,6 +120,30 @@ def is_book_scraped_url(session, url):
     return session.query(Book).filter(Book.url == url).first()
 
 
+def get_book_details_request_html(book_detail_page_url):
+    response = requests.get(book_detail_page_url)
+
+    if response.status_code == 200:
+        return response.text
+
+    else:
+        logging.critical(
+            f"Failed to fetch detail page for {book_detail_page_url}. Status code: {response.status_code}")
+        return False
+
+
+def get_book_details_html_with_paper_book_check_no_js(book_detail_page_url, session):
+    book_detail_page_html = get_book_details_request_html(book_detail_page_url)
+    if not book_detail_page_html:
+        return False
+
+    # check if paper book exists
+    new_url = if_paperbook_option_exists_return_new_url(book_detail_page_html)
+    if new_url is not None:
+        return get_book_details_html_with_paper_book_check_no_js(new_url, session)
+    return book_detail_page_html
+
+
 def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, session):
     """Create a browser and wait for the page to load, then return the page source"""
     chrome_options = Options()
@@ -156,6 +178,24 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, ses
 
 
 # SAVING THE BOOK TO THE DATABASE ############################
+
+
+def save_book_details_to_database_no_recommendations(book_details, session):
+    """Save or update book details in the database."""
+    try:
+        book = create_new_book(book_details)
+        session.add(book)
+        session.flush()
+
+        link_authors_to_book(book, book_details[AUTHORS], session)
+
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logging.error(
+            f"Error saving details for FAUST: {book_details[FAUST]}, '{book_details[TITLE]}', ISBN: {book_details[ISBN]}",
+            e)
+
 
 def save_book_details_to_database(book_details, session, parent=None):
     """Save or update book details in the database."""
@@ -193,14 +233,19 @@ def get_book_by_isbn(session, isbn):
 
 def create_new_book(book_details):
     return Book(
+        faust=book_details[FAUST],
         isbn=book_details[ISBN],
         title=book_details[TITLE],
+        title_original=book_details[TITLE_ORIGINAL],
+        title_normalized=book_details[TITLE_NORMALIZED],
+        authors_original=book_details[AUTHOR_ORIGINAL],
+        authors_normalized=book_details[AUTHOR_NORMALIZED],
         page_count=book_details[PAGE_COUNT],
         published_date=book_details[PUBLISHED_DATE],
         publisher=book_details[PUBLISHER],
         format=book_details[FORMAT],
-        num_of_ratings=int(book_details[NUM_OF_RATINGS]),
-        rating=book_details[RATING],
+        # num_of_ratings=int(book_details[NUM_OF_RATINGS]),
+        # rating=book_details[RATING],
         description=book_details[DESCRIPTION],
         url=book_details[URL],
         top10k=book_details[TOP10K]

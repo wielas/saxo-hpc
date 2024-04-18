@@ -1,0 +1,19 @@
+2024-04-18 14:02:40,158:INFO:Starting the scraping process
+2024-04-18 14:02:58,520:WARNING:Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)': /session/37ae36c68de6a93f068dab6003eb3ddd
+2024-04-18 14:03:02,585:WARNING:Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000212CE979910>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')': /session/37ae36c68de6a93f068dab6003eb3ddd
+2024-04-18 14:03:06,733:WARNING:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000212CE97AC90>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')': /session/37ae36c68de6a93f068dab6003eb3ddd
+2024-04-18 14:03:25,291:INFO:Starting the scraping process
+2024-04-18 14:37:11,630:INFO:Starting the scraping process
+2024-04-18 14:38:26,047:INFO:Starting the scraping process
+2024-04-18 14:38:58,210:INFO:Starting the scraping process
+2024-04-18 14:48:57,201:INFO:Starting the scraping process
+2024-04-18 14:50:04,019:INFO:Starting the scraping process
+2024-04-18 14:50:37,923:INFO:Starting the scraping process
+2024-04-18 14:56:47,731:INFO:Starting the scraping process
+2024-04-18 14:58:38,235:INFO:Starting the scraping process
+2024-04-18 14:59:19,483:INFO:Starting the scraping process
+2024-04-18 15:02:41,286:CRITICAL:Failed to parse the search results. Title: kunsten at vaere fcking ligeglad, Author: mark manson f 1984 error: cannot access local variable 'book_parsed' where it is not associated with a value
+2024-04-18 15:02:49,432:CRITICAL:Failed to parse the search results. Title: ellen hillingsoe laeser ronja roeverdatter, Author: astrid lindgren error: cannot access local variable 'book_parsed' where it is not associated with a value
+2024-04-18 15:03:22,826:ERROR:Failed to find the book in the search results. Title: sallys farboegerne, Author: thomas brunstroem, Book details: {'Id': '9788702307825', 'Name': 'David og Goliat', 'Price': 149.95, 'Brand': 'Sally Altschuler', 'Category': 'No category', 'CategoryIds': None, 'LanguageCode': None, 'Work': 'Bog', 'Quantity': '1', 'Authors': ['Sally Altschuler'], 'Identifier': '9788702307825', 'Url': 'https://www.saxo.com/dk/david-og-goliat_sally-altschuler_haeftet_9788702307825', 'ImageUrl': 'https://imgcdn.saxo.com/_9788702307825/medium', 'Format': None, 'Publisher': None, 'Rating': 2.0} SAVING DEFAULT
+2024-04-18 15:03:26,251:ERROR:Failed to find the book in the search results. Title: det er de danske som flygter, Author: lise ringhoferik valeur, Book details: {'Id': '9788794388030', 'Name': 'H\xc5NDV\xc6RK bookazine - indretning (dansk udgave)', 'Price': 239.95, 'Brand': 'Rigetta Klint', 'Category': 'No category', 'CategoryIds': None, 'LanguageCode': None, 'Work': 'Bog', 'Quantity': '1', 'Authors': ['Rigetta Klint'], 'Identifier': '9788794388030', 'Url': 'https://www.saxo.com/dk/haandvaerk-bookazine-indretning-dansk-udgave_bog_9788794388030', 'ImageUrl': 'https://imgcdn.saxo.com/_9788794388030/medium', 'Format': None, 'Publisher': None, 'Rating': 0.0} SAVING DEFAULT
+2024-04-18 15:04:02,900:CRITICAL:Failed to parse the search results. Title: ellen hillingsoe laeser broedrene loevehjerte, Author: astrid lindgren error: cannot access local variable 'book_parsed' where it is not associated with a value

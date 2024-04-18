@@ -17,12 +17,15 @@ logging.info("Starting the scraping process")
 
 # todo add a check for book 34 with url error
 
-def read_input_csv(file_path):
-    """Read the CSV file to get the list of tuples (book_title, book_author) and return it as a list"""
-    df = pd.read_csv(file_path, encoding="ISO-8859-1")
-    df["book_author"] = df["book_author"].fillna('')
-    book_info = list(zip(df["book_title"], df["book_author"]))
-    return book_info
+# def read_input_csv(file_path):
+#     """Read the CSV file to get the list of tuples (book_title, book_author) and return it as a list"""
+#     df = pd.read_csv(file_path, encoding="ISO-8859-1")
+#     df["book_author"] = df["book_author"].fillna('')
+#     df['normalized_title'] = df['book_title'].apply(normalize_text)
+#     df['normalized_author'] = df['book_author'].apply(normalize_text)
+#
+#     book_info = list(zip(df["book_title"], df["book_author"], df["faust_numer"], df["isbn_scraped"], df['top10k']))
+#     return book_info
 
 
 def is_book_scraped_top10k(session, i):
@@ -45,6 +48,16 @@ def normalize_title_and_author(title, author):
 def save_default_book(title, author, i, session):
     default_book_dict = default_book_dict_with_title_author(title, author, i + 1)
     save_book_details_to_database(default_book_dict, session)
+
+def read_input_missing_books():
+    df = pd.read_csv('data/books_with_invalid_isbn.csv', encoding="ISO-8859-1")
+    book_info = list(zip(df["title"], df["top10k"]))
+    return book_info
+
+# if __name__ == '__main__':
+#     scrape_books_top10k_only_no_recommendations()
+
+
 
 
 if __name__ == "__main__":
