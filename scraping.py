@@ -15,7 +15,8 @@ from database import Book, Author
 from utils import translate_danish_to_english, \
     ISBN, TITLE, PAGE_COUNT, PUBLISHED_DATE, PUBLISHER, FORMAT, DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, \
     default_book_dict_with_isbn, URL, LoadStatus, check_match, \
-    normalize_and_translate_text, FAUST, TITLE_ORIGINAL, TITLE_NORMALIZED, AUTHOR_ORIGINAL, AUTHOR_NORMALIZED
+    normalize_and_translate_text, FAUST, TITLE_ORIGINAL, TITLE_NORMALIZED, AUTHOR_ORIGINAL, AUTHOR_NORMALIZED, CSV_ISBN, \
+    GENRE, AUDIENCE, LOANS
 
 
 def query_saxo_with_title_return_search_page(title):
@@ -58,17 +59,22 @@ def find_book_by_title_in_search_results_return_book_url(html_content_search_pag
         soup_search_page = BeautifulSoup(html_content_search_page, "html.parser")
         for book in soup_search_page.find_all("div", class_="product-list-teaser"):
             book_parsed = (book.find("a").get("data-val"))
-            book_parsed = json.loads(book_parsed)
-            # print(book_parsed)
+            if book_parsed:
+                book_parsed = json.loads(book_parsed)
 
-            # verify that the book matches the search criteria (author and paperbook)
-            if 'Authors' in book_parsed and 'Work' in book_parsed and author and title:
-                if check_match(title, book_parsed['Name'], author, ', '.join(book_parsed['Authors'])):
-                    return book_parsed["Url"]
+                # verify that the book matches the search criteria (author and title)
+                if 'Authors' in book_parsed and 'Work' in book_parsed and author and title:
+                    if check_match(title, book_parsed['Name'], author, ', '.join(book_parsed['Authors'])):
+                        return book_parsed["Url"]
 
-        logging.error(
-            f"Failed to find the book in the search results. Title: {title}, Author: {author}, Book details: {book_parsed} SAVING DEFAULT")
-        return False
+                # Check if book_parsed was set, otherwise log generic error message
+            if book_parsed:
+                logging.error(
+                    f"Failed to find the book in the search results. Title: {title}, Author: {author}, Book details: {book_parsed}")
+            else:
+                logging.error(
+                    f"Failed to find the book in the search results. Title: {title}, Author: {author} no book parsed")
+            return False
 
     except Exception as e:
         logging.critical(f"Failed to parse the search results. Title: {title}, Author: {author} error: {e}")
@@ -233,9 +239,10 @@ def get_book_by_isbn(session, isbn):
 
 def create_new_book(book_details):
     return Book(
-        faust=book_details[FAUST],
-        isbn=book_details[ISBN],
         title=book_details[TITLE],
+        fausts=book_details[FAUST],
+        isbn=book_details[ISBN],
+        csv_isbn=book_details[CSV_ISBN],
         title_original=book_details[TITLE_ORIGINAL],
         title_normalized=book_details[TITLE_NORMALIZED],
         authors_original=book_details[AUTHOR_ORIGINAL],
@@ -244,6 +251,10 @@ def create_new_book(book_details):
         published_date=book_details[PUBLISHED_DATE],
         publisher=book_details[PUBLISHER],
         format=book_details[FORMAT],
+        genre=book_details[GENRE],
+        audience=book_details[AUDIENCE],
+        n_loans=book_details[LOANS],
+
         # num_of_ratings=int(book_details[NUM_OF_RATINGS]),
         # rating=book_details[RATING],
         description=book_details[DESCRIPTION],

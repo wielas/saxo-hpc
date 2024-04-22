@@ -18,8 +18,9 @@ KEY_MAPPINGS = {
 }
 
 # for saving to db
-FAUST = "Faust"
+FAUST = "Fausts"
 ISBN = "ISBN"
+CSV_ISBN = "CSV_ISBN"
 TITLE = "Title"
 TITLE_NORMALIZED = "TitleNormalized"
 TITLE_ORIGINAL = "TitleOriginal"
@@ -33,6 +34,9 @@ NUM_OF_RATINGS = "NumOfRatings"
 RATING = "Rating"
 DESCRIPTION = "Description"
 TOP10K = "Top10k"
+AUDIENCE = "Audience"
+GENRE = "Genre"
+LOANS = "Loans"
 AUTHORS = "Authors"
 URL = "Url"
 RECOMMENDATIONS = "Recommendations"
