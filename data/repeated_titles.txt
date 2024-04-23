@@ -1,0 +1,11 @@
+Harry Potter og De Vises Sten
+
+Message: "Error saving details for FAUST: 28966512;27723942;51875613, 'cirkeline tael til 10', ISBN: 9788763818148"
+Arguments: (IntegrityError('(sqlite3.IntegrityError) UNIQUE constraint failed: book.title'),)
+Scraping book 5342 (top10k 5342) out of 10000
+
+
+++ prepare a rerun for no author
+++ no removal of - from author
+++ checking title[:2] + author[0] if no results found
+++ remove double whitespace

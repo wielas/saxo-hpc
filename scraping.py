@@ -57,24 +57,27 @@ def query_saxo_with_isbn_return_book_page_url(isbn):
 def find_book_by_title_in_search_results_return_book_url(html_content_search_page, author=None, title=None):
     try:
         soup_search_page = BeautifulSoup(html_content_search_page, "html.parser")
+        book_parsed = ''
         for book in soup_search_page.find_all("div", class_="product-list-teaser"):
             book_parsed = (book.find("a").get("data-val"))
             if book_parsed:
                 book_parsed = json.loads(book_parsed)
 
                 # verify that the book matches the search criteria (author and title)
-                if 'Authors' in book_parsed and 'Work' in book_parsed and author and title:
+                if 'Authors' in book_parsed and 'Work' in book_parsed and 'brugt' not in book_parsed[
+                    'Work'].lower() and author and title:
                     if check_match(title, book_parsed['Name'], author, ', '.join(book_parsed['Authors'])):
                         return book_parsed["Url"]
 
-                # Check if book_parsed was set, otherwise log generic error message
-            if book_parsed:
-                logging.error(
-                    f"Failed to find the book in the search results. Title: {title}, Author: {author}, Book details: {book_parsed}")
-            else:
-                logging.error(
-                    f"Failed to find the book in the search results. Title: {title}, Author: {author} no book parsed")
-            return False
+        if book_parsed:
+            print(f"Failed to find the book '{title}' by {author}' in search results")
+            logging.error(
+                f"Failed to find the book in the search results. Title: {title}, Author: {author}, Book details: {book_parsed}")
+        else:
+            print(f"Failed to find the book '{title}', by '{author}' (no results))")
+            logging.error(
+                f"Failed 2 find the book (no results). Title: {title}, Author: {author} no book parsed")
+        return False
 
     except Exception as e:
         logging.critical(f"Failed to parse the search results. Title: {title}, Author: {author} error: {e}")

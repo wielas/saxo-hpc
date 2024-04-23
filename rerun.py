@@ -43,6 +43,9 @@ def scrape_books_top10k_only_no_recommendations():
     session = create_session()
 
     for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(book_info):
+        if i < 5275:
+            continue
+
         if is_book_scraped_top10k(session, title):
             print(f"Book {i + 1} (title: {title}, normal_title: {normal_title}) is already in the database")
             continue
