@@ -1,5 +1,6 @@
 import logging
 import re
+import string
 from difflib import SequenceMatcher
 
 import unicodedata
@@ -80,20 +81,17 @@ def default_book_dict_with_isbn(isbn):
 
 ########## new code ##########
 def normalize_and_translate_text(text):
-    # Normalize text to lowercase and remove non-alphanumeric characters except spaces
+    # Normalize text to lowercase and remove punctuation characters
     text = translate_danish_to_english(text)
-    return ''.join(char.lower() for char in text if char.isalnum() or char.isspace())
-
+    return ''.join(char.lower() for char in text if char not in string.punctuation)
 
 def similar(a, b):
     # Calculate normalized Levenshtein distance and return similarity score
     return SequenceMatcher(None, a, b).ratio()
 
-
 def match_titles(title1, title2):
     # Check if the titles are similar enough (edit distance <= 1)
     return similar(title1, title2) > 0.85
-
 
 def match_authors(author1, author2):
     # Split the author names into parts and check for first name and at least one other name match
@@ -101,11 +99,8 @@ def match_authors(author1, author2):
     names2 = set(normalize_and_translate_text(author2).split())
     if len(names1) == 0 or len(names2) == 0:
         return False
-    # Check if least one name match
+    # Check if at least one name matches
     return len(names1.intersection(names2)) >= 1
-
-
-
 
 def check_match(current_row_title, web_title, current_row_author, web_author):
     # Normalize data
