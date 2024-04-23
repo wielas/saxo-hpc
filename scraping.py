@@ -16,7 +16,7 @@ from utils import translate_danish_to_english, \
     ISBN, TITLE, PAGE_COUNT, PUBLISHED_DATE, PUBLISHER, FORMAT, DESCRIPTION, TOP10K, AUTHORS, RECOMMENDATIONS, \
     default_book_dict_with_isbn, URL, LoadStatus, check_match, \
     normalize_and_translate_text, FAUST, TITLE_ORIGINAL, TITLE_NORMALIZED, AUTHOR_ORIGINAL, AUTHOR_NORMALIZED, CSV_ISBN, \
-    GENRE, AUDIENCE, LOANS
+    GENRE, AUDIENCE, LOANS, NUM_OF_RATINGS, RATING
 
 
 def query_saxo_with_title_return_search_page(title):
@@ -186,6 +186,25 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, ses
     return (LoadStatus.NEW, html)
 
 
+def create_browser_for_recommendation_scrape(book_detail_page_url):
+    """Create a browser and wait for the page to load, then return the page source"""
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    with Chrome(options=chrome_options) as browser:
+        browser.get(book_detail_page_url)
+
+        try:
+            WebDriverWait(browser, 30).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "book-slick-slider")))
+            html = browser.page_source
+
+        except TimeoutException:
+            print('kurdefiks, no recomms?')
+            logging.info(f"Failed to load the page. URL: {book_detail_page_url}")
+            return False
+    return html
+
+
 # SAVING THE BOOK TO THE DATABASE ############################
 
 
@@ -203,6 +222,22 @@ def save_book_details_to_database_no_recommendations(book_details, session):
         session.rollback()
         logging.error(
             f"Error saving details for FAUST: {book_details[FAUST]}, '{book_details[TITLE]}', ISBN: {book_details[ISBN]}",
+            e)
+
+
+def save_book_recommendations_and_reviews_to_database(book, book_details, session):
+    try:
+
+        save_recommended_books(book, book_details[RECOMMENDATIONS], session)
+        book.num_of_ratings = book_details[NUM_OF_RATINGS]
+        book.rating = book_details[RATING]
+        book.scraped_recommendations = True
+
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logging.error(
+            f"Error saving details for '{book_details[TITLE]}', Top10k: {book_details[TOP10K]} ISBN: {book_details[ISBN]}",
             e)
 
 
@@ -299,13 +334,7 @@ def save_recommended_books(parent_book, recommended_isbns, session):
     for recommended_isbn in recommended_isbns:
         # check if the recommended book is already in the database
         existing_recommended_book = get_book_by_isbn(session, recommended_isbn)
-        if existing_recommended_book and existing_recommended_book not in parent_book.recommendations:
-            parent_book.recommendations.append(existing_recommended_book)
-            continue
-
-        # if not, scrape the details and save it
-        scrape_and_save_recommended_book(parent_book, recommended_isbn, session)
-        time.sleep(1)
+        parent_book.recommendations.append(existing_recommended_book)
 
 
 def scrape_and_save_recommended_book(parent_book, book_isbn, session):  # todo optimize

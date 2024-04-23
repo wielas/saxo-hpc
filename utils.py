@@ -105,8 +105,6 @@ def match_authors(author1, author2):
     return len(names1.intersection(names2)) >= 1
 
 
-
-
 def check_match(current_row_title, web_title, current_row_author, web_author):
     # Normalize data
     current_row_title_normalized = normalize_and_translate_text(current_row_title)
@@ -152,6 +150,7 @@ def translate_danish_to_english(text):
 
     return text
 
+
 # hidden og code
 # def is_book_correct(authors_local, book_parsed):
 #     """Parse the first author and compare it to the extracted authors. Return True if the names match."""
@@ -188,18 +187,16 @@ def translate_danish_to_english(text):
 #     return book_details
 
 
-def extract_book_details_dict_no_js(book_page_html):
+def extract_book_rating_and_recommendations(book_page_html, top10k_isbn_list):
     """Scrape and structure the book's details from its HTML page content."""
     soup = BeautifulSoup(book_page_html, "html.parser")
-    title = extract_title(soup)
-    authors = extract_authors(soup)
-    details = extract_details(soup)
-    product_description = extract_description(soup)
+    rating, num_of_reviews = extract_reviews(soup)
+    recommendations = extract_recommendations_list(book_page_html, top10k_isbn_list)
 
     # Combine all extracted details into a single dictionary
-    book_details = {**details, TITLE: title, AUTHORS: authors, DESCRIPTION: product_description}
+    book_details = {NUM_OF_RATINGS: num_of_reviews, RATING: rating,
+                    RECOMMENDATIONS: recommendations}
     return book_details
-
 
 
 def extract_title(soup):
@@ -293,19 +290,26 @@ def convert_page_count(key, value):
     return value
 
 
-def extract_recommendations_list(book_page_html):
+def extract_recommendations_list(book_page_html, top10k_isbn_list):
     """Scrape the book's recommendations based on its HTML page content."""
     soup = BeautifulSoup(book_page_html, "html.parser")
     recommendations_isbn = []
-    recommendations = soup.find("div", id="product-page-banner-container").find("div",
-                                                                                class_="book-slick-slider slick-initialized slick-slider")
+    recommendations = ''
+
+    h2_tag = soup.find('h2', string="Andre købte også")
+
+    # Check if the recommendatons come from others also bought section
+    if h2_tag and h2_tag.find_next_sibling(class_="book-slick-slider"):
+        recommendations = h2_tag.find_next_sibling(class_="book-slick-slider")
 
     if recommendations:
         cover_containers = recommendations.find_all("div", class_=lambda e: e.startswith('new-teaser') if e else False)
         for cover in cover_containers:
             isbn = cover.find("a", class_="cover-container").get('data-product-identifier')
-            if isbn:
+            if isbn and isbn in top10k_isbn_list:
                 recommendations_isbn.append(isbn)
             else:
                 logging.error("Failed to extract a recommendation ISBN from the book page.")
     return recommendations_isbn
+
+
