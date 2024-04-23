@@ -41,7 +41,11 @@ def get_first_three_words(text):
     words = text.split()
     # Get the first three words
     first_three_words = words[:3]
-    return first_three_words
+    return ' '.join(first_three_words)
+
+def get_author_name(text):
+    name = text.split()
+    return name[0] if name else ''
 
 
 def scrape_books_top10k_only_no_recommendations():
@@ -52,8 +56,7 @@ def scrape_books_top10k_only_no_recommendations():
 
     for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(
             book_info):
-        if i < 5275:
-            continue
+
 
         if is_book_scraped_top10k(session, title):
             print(f"Book {i + 1} (title: {title}, normal_title: {normal_title}) is already in the database")
@@ -68,7 +71,7 @@ def scrape_books_top10k_only_no_recommendations():
 
         # get the search page html
         search_page_html = query_saxo_with_short_title_and_author_name_return_search_page(
-            get_first_three_words(normal_title), normal_author.split()[0])
+            get_first_three_words(normal_title), get_author_name(normal_author))
         if search_page_html is None:  # handled in the function
             continue
         time.sleep(randint(1, 2))

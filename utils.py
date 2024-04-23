@@ -103,7 +103,8 @@ def match_authors(author1, author2):
     names1 = set(normalize_and_translate_text(author1).split())
     names2 = set(normalize_and_translate_text(author2).split())
     if len(names1) == 0 or len(names2) == 0:
-        return False
+        return True # Return True if at least one author name is missing
+
     # Check if least one name match
     return len(names1.intersection(names2)) >= 1
 

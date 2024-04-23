@@ -35,7 +35,8 @@ def query_saxo_with_title_return_search_page(title):
 
 def query_saxo_with_short_title_and_author_name_return_search_page(title, author):
     """Search for the book on Saxo.com """
-    search_url = f"https://www.saxo.com/dk/products/search?query={title.replace(' ', '+')}+{author}"
+    search_url = f"https://www.saxo.com/dk/products/search?query={title.replace(' ', '+')}+{author}" if author else f"https://www.saxo.com/dk/products/search?query={title.replace(' ', '+')}"
+    print(search_url)
     response = requests.get(search_url)
 
     if response.status_code == 200:
@@ -78,8 +79,7 @@ def find_book_by_title_in_search_results_return_book_url(html_content_search_pag
                 book_parsed = json.loads(book_parsed)
 
                 # verify that the book matches the search criteria (author and title)
-                if 'Authors' in book_parsed and 'Work' in book_parsed and 'brugt' not in book_parsed[
-                    'Work'].lower() and author and title:
+                if 'Work' in book_parsed and 'brugt' not in book_parsed['Work'].lower() and title:
                     if check_match(title, book_parsed['Name'], author, ', '.join(book_parsed['Authors'])):
                         return book_parsed["Url"]
 
