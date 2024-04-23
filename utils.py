@@ -83,7 +83,7 @@ def default_book_dict_with_isbn(isbn):
 def normalize_and_translate_text(text):
     # Normalize text to lowercase and remove punctuation characters
     text = translate_danish_to_english(text)
-    return ''.join(char.lower() for char in text if char not in string.punctuation)
+    return ''.join(char.lower() for char in text)
 
 def similar(a, b):
     # Calculate normalized Levenshtein distance and return similarity score

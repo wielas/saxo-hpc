@@ -31,9 +31,13 @@ def read_input_csv(file_path):
     return book_info
 
 
-def is_book_scraped_top10k(session, title):
+def is_book_scraped_title(session, title):
     """Check if the book is already in the database"""
     return session.query(Book).filter(Book.title_original == title).first()
+
+def is_book_scraped_top10k(session, top10k):
+    """Check if the book is already in the database"""
+    return session.query(Book).filter(Book.top10k == top10k).first()
 
 
 def scrape_books_top10k_only_no_recommendations():
@@ -43,10 +47,14 @@ def scrape_books_top10k_only_no_recommendations():
     session = create_session()
 
     for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(book_info):
-        if i < 5275:
+        if i < 9730:
             continue
 
-        if is_book_scraped_top10k(session, title):
+        if is_book_scraped_top10k(session, top10k):
+            print(f"Book {i + 1} (top10k {top10k}) is already in the database")
+            continue
+
+        if is_book_scraped_title(session, title):
             print(f"Book {i + 1} (title: {title}, normal_title: {normal_title}) is already in the database")
             continue
 
