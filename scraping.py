@@ -33,6 +33,20 @@ def query_saxo_with_title_return_search_page(title):
         return None
 
 
+def query_saxo_with_short_title_and_author_name_return_search_page(title, author):
+    """Search for the book on Saxo.com """
+    search_url = f"https://www.saxo.com/dk/products/search?query={title.replace(' ', '+')}+{author}"
+    response = requests.get(search_url)
+
+    if response.status_code == 200:
+        return response.text
+
+    else:
+        logging.exception(
+            f"Failed to fetch search results from Saxo.com for {title}. Status code: {response.status_code} ABORTING")
+        return None
+
+
 def is_query_redirecting_to_book_page(response):
     return 'search?query' not in response.url
 

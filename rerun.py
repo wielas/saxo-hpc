@@ -7,7 +7,7 @@ import pandas as pd
 from database import create_session, Book
 from scraping import query_saxo_with_title_return_search_page, \
     find_book_by_title_in_search_results_return_book_url, get_book_details_html_with_paper_book_check_no_js, \
-    save_book_details_to_database_no_recommendations
+    save_book_details_to_database_no_recommendations, query_saxo_with_short_title_and_author_name_return_search_page
 from utils import normalize_and_translate_text, extract_book_details_dict_no_js, TOP10K, URL, FAUST, \
     TITLE_NORMALIZED, AUTHOR_NORMALIZED, TITLE_ORIGINAL, AUTHOR_ORIGINAL, AUDIENCE, GENRE, LOANS, CSV_ISBN, \
     ISBN
@@ -36,13 +36,22 @@ def is_book_scraped_top10k(session, title):
     return session.query(Book).filter(Book.title_original == title).first()
 
 
+def get_first_three_words(text):
+    # Split the text into words
+    words = text.split()
+    # Get the first three words
+    first_three_words = words[:3]
+    return first_three_words
+
+
 def scrape_books_top10k_only_no_recommendations():
     input_csv = "data/top10k_book_metadata_v4.csv"  # ensure proper encoding ISO-8859-1
 
     book_info = read_input_csv(input_csv)
     session = create_session()
 
-    for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(book_info):
+    for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(
+            book_info):
         if i < 5275:
             continue
 
@@ -58,7 +67,8 @@ def scrape_books_top10k_only_no_recommendations():
             continue
 
         # get the search page html
-        search_page_html = query_saxo_with_title_return_search_page(normal_title)
+        search_page_html = query_saxo_with_short_title_and_author_name_return_search_page(
+            get_first_three_words(normal_title), normal_author.split()[0])
         if search_page_html is None:  # handled in the function
             continue
         time.sleep(randint(1, 2))

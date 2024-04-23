@@ -82,7 +82,10 @@ def default_book_dict_with_isbn(isbn):
 def normalize_and_translate_text(text):
     # Normalize text to lowercase and remove non-alphanumeric characters except spaces
     text = translate_danish_to_english(text)
-    return ''.join(char.lower() for char in text if char.isalnum() or char.isspace())
+    normalized_text = ''.join(char.lower() if char.isalnum() or char.isspace() else ' ' for char in text)
+    # Collapse multiple spaces into one
+    collapsed_text = re.sub(r'\s+', ' ', normalized_text).strip()
+    return collapsed_text
 
 
 def similar(a, b):
