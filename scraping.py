@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -188,9 +189,12 @@ def create_browser_and_wait_for_book_details_page_load(book_detail_page_url, ses
 
 def create_browser_for_recommendation_scrape(book_detail_page_url):
     """Create a browser and wait for the page to load, then return the page source"""
+    chromedriver_path = './chromedriver'
     chrome_options = Options()
     chrome_options.add_argument("--headless")
-    with Chrome(options=chrome_options) as browser:
+    chrome_options.add_argument("--disable-images")
+    s = Service(chromedriver_path)
+    with Chrome(service=s, options=chrome_options) as browser:
         browser.get(book_detail_page_url)
 
         try:
@@ -200,7 +204,7 @@ def create_browser_for_recommendation_scrape(book_detail_page_url):
 
         except TimeoutException:
             print('kurdefiks, no recomms?')
-            logging.info(f"Failed to load the page. URL: {book_detail_page_url}")
+            logging.error(f"Failed to load the page. URL: {book_detail_page_url}")
             return False
     return html
 

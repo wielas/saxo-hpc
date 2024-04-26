@@ -61,7 +61,7 @@ def scrape_books_top10k_only_no_recommendations():
         search_page_html = query_saxo_with_title_return_search_page(normal_title)
         if search_page_html is None:  # handled in the function
             continue
-        time.sleep(randint(1, 2))
+        time.sleep(1.1)
 
         # get the book page url
         book_page_url = find_book_by_title_in_search_results_return_book_url(search_page_html, normal_author,
@@ -73,7 +73,7 @@ def scrape_books_top10k_only_no_recommendations():
         book_page_html = get_book_details_html_with_paper_book_check_no_js(book_page_url, session)
         if not book_page_html:  # handled in the function
             continue
-        time.sleep(randint(1, 2))
+        time.sleep(1.2)
 
         # get the book details
         book_details_dict = extract_book_details_dict_no_js(book_page_html)

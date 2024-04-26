@@ -289,6 +289,21 @@ def convert_page_count(key, value):
             return 0
     return value
 
+def find_h2_tag_with_right_recommendations(soup):
+    h2_tag = soup.find('h2', string="Andre købte også")
+    if not h2_tag:
+        h2_tag = soup.find('h2', string="Andre kiggede også på disse bøger")
+    if not h2_tag:
+        h2_tag = soup.find('h2', string="Andre kiggede også på")
+    if not h2_tag:
+        h2_tag = soup.find('h2', string="Lignende bøger i samme genre")
+    if not h2_tag:
+        h2_tag = soup.find('h2', string="Ofte købt sammen med denne bog")
+    if not h2_tag:
+        h2_tag = soup.find('h2', string="Populære bøger i samme genre")
+        if h2_tag:
+            logging.info(f"book {extract_title(soup)} is recommended as popular in the same genre")
+    return h2_tag
 
 def extract_recommendations_list(book_page_html, top10k_isbn_list):
     """Scrape the book's recommendations based on its HTML page content."""
@@ -296,7 +311,7 @@ def extract_recommendations_list(book_page_html, top10k_isbn_list):
     recommendations_isbn = []
     recommendations = ''
 
-    h2_tag = soup.find('h2', string="Andre købte også")
+    h2_tag = find_h2_tag_with_right_recommendations(soup)
 
     # Check if the recommendatons come from others also bought section
     if h2_tag and h2_tag.find_next_sibling(class_="book-slick-slider"):

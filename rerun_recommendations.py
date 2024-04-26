@@ -55,12 +55,22 @@ def scrape_recommendations_top10k_only():
 
     for book in top10k_books:
         if book.scraped_recommendations:
-            print(f"Recommendations already scraped for top10k: {book.top10k}, title: {book.title}")
+            print(f"top10k: {book.top10k} Recommendations already scraped for title: {book.title}, url: {book.url}")
             continue
 
-        print(f"Top10k: {book.top10k} out of: {len(top10k_books)} Title: {book.title_original}")
+        if book.recommendations:
+            print(f"top10k: {book.top10k} Already has recommendations title: {book.title}, url: {book.url}")
+            continue
+
+        print(f"Top10k: {book.top10k} out of: {len(top10k_books)} Title: {book.title_original}, url: {book.url}")
         book_detail_url = book.url
-        book_detail_html = create_browser_for_recommendation_scrape(book_detail_url)
+        book_detail_html = create_browser_for_recommendation_scrape(book_detail_url)  # todo add check when kurdefiks
+
+        if not(book_detail_html):
+            print(f"Book {book.title} has no recommendations")
+            logging.info(f"Book {book.title} has no recommendations")
+            continue
+
         book_details_dict = extract_book_rating_and_recommendations(book_detail_html, top10k_isbns)
         print(book_details_dict)
         save_book_recommendations_and_reviews_to_database(book, book_details_dict, session)
