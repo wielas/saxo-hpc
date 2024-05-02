@@ -4,7 +4,7 @@ from random import randint
 
 import pandas as pd
 
-from database import create_session, Book
+from database import create_session, Book, or_
 from scraping import query_saxo_with_title_return_search_page, \
     find_book_by_title_in_search_results_return_book_url, get_book_details_html_with_paper_book_check_no_js, \
     save_book_details_to_database_no_recommendations
@@ -43,8 +43,6 @@ def scrape_books_top10k_only_no_recommendations():
     session = create_session()
 
     for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(book_info):
-        if i < 5275:
-            continue
 
         if is_book_scraped_top10k(session, title):
             print(f"Book {i + 1} (title: {title}, normal_title: {normal_title}) is already in the database")
@@ -70,7 +68,7 @@ def scrape_books_top10k_only_no_recommendations():
             continue
 
         # get the book page html (no JS content)
-        book_page_html = get_book_details_html_with_paper_book_check_no_js(book_page_url, session)
+        book_page_url, book_page_html = get_book_details_html_with_paper_book_check_no_js(book_page_url, session)
         if not book_page_html:  # handled in the function
             continue
         time.sleep(randint(1, 2))
