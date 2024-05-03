@@ -144,7 +144,7 @@ def get_book_details_request_html(book_detail_page_url):
 def get_book_details_html_with_paper_book_check_no_js(book_detail_page_url, session):
     book_detail_page_html = get_book_details_request_html(book_detail_page_url)
     if not book_detail_page_html:
-        return False
+        return None, None
 
     # check if paper book exists
     new_url = if_paperbook_option_exists_return_new_url(book_detail_page_html)
