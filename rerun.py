@@ -56,6 +56,8 @@ def scrape_books_top10k_only_no_recommendations():
 
     for i, (title, normal_title, author, normal_author, fausts, isbns, audience, genre, loans, top10k) in enumerate(
             book_info):
+        if i < 9840:
+            continue
 
 
         if is_book_scraped_top10k(session, title):
@@ -74,7 +76,7 @@ def scrape_books_top10k_only_no_recommendations():
             get_first_three_words(normal_title), get_author_name(normal_author))
         if search_page_html is None:  # handled in the function
             continue
-        time.sleep(randint(1, 2))
+        time.sleep(randint(4, 9)/10)
 
         # get the book page url
         book_page_url = find_book_by_title_in_search_results_return_book_url(search_page_html, normal_author,
@@ -83,10 +85,10 @@ def scrape_books_top10k_only_no_recommendations():
             continue
 
         # get the book page html (no JS content)
-        book_page_html = get_book_details_html_with_paper_book_check_no_js(book_page_url, session)
+        book_page_url, book_page_html = get_book_details_html_with_paper_book_check_no_js(book_page_url, session)
         if not book_page_html:  # handled in the function
             continue
-        time.sleep(randint(1, 2))
+        time.sleep(randint(4,9)/10)
 
         # get the book details
         book_details_dict = extract_book_details_dict_no_js(book_page_html)
