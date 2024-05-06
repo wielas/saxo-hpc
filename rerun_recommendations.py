@@ -54,6 +54,7 @@ def scrape_recommendations_top10k_only():
     top10k_isbns = get_top10k_isbn_from_db(session)
 
     for book in top10k_books:
+
         if book.scraped_recommendations:
             print(f"top10k: {book.top10k} Recommendations already scraped for title: {book.title}, url: {book.url}")
             continue

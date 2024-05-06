@@ -59,7 +59,7 @@ class Author(Base):
     books = relationship('Book', secondary=book_author, back_populates='authors')
 
 
-engine = create_engine('sqlite:///scraped_books_rerun_recommendations_v1.db')
+engine = create_engine('sqlite:///scraped_books_rerun_format_recommendations_v1.db')
 Base.metadata.create_all(engine)
 
 
